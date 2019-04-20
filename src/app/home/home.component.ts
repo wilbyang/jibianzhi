@@ -40,26 +40,5 @@ export class HomeComponent implements OnInit, AfterViewInit {
     this.backendApiService.getStories().subscribe((stories) => {
       this.stories = stories;
     });
-    const searchGithub = (term) =>
-      fetch(`https://api.github.com/search/users?q=${term}`)
-        .then(data => data.json());
-
-    const input$ = fromEvent(null, 'input')
-      .pipe(
-        debounceTime(350),
-
-        map(e => e.target.value),
-
-        filter(query => query.length >= 2 ||
-          query.length === 0),
-
-        distinctUntilChanged(),
-
-        switchMap(value => value ?
-          from(searchGithub(value)) :
-          of({items: []})
-        )
-      );
   }
-
 }
