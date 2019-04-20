@@ -1,7 +1,8 @@
 import {AfterViewInit, Component, ElementRef, OnInit, ViewChild} from '@angular/core';
 import {BackendApiService, Story} from '../services/backend-api.service';
-import {distinctUntilChanged, switchMap, debounceTime, filter, map, startWith} from 'rxjs/operators';
-import {from, fromEvent, of} from 'rxjs';
+import {distinctUntilChanged, switchMap, debounceTime, filter, map, tap} from 'rxjs/operators';
+import {combineLatest, fromEvent, Observable} from 'rxjs';
+import * as Fuse from 'fuse.js';
 
 @Component({
   selector: 'app-home',
@@ -22,23 +23,36 @@ export class HomeComponent implements OnInit, AfterViewInit {
   constructor(private backendApiService: BackendApiService) {
   }
   ngAfterViewInit(): void {
+    const options = {
+      shouldSort: true,
+      threshold: 0.6,
+      location: 0,
+      distance: 100,
+      maxPatternLength: 32,
+      minMatchCharLength: 1,
+      keys: [
+        'title',
+      ]
+    };
 
-    const typeahead = fromEvent(this.input.nativeElement, 'input').pipe(
+    const typeahead = (stories: Story[]) => fromEvent(this.input.nativeElement, 'input').pipe(
       map((e: KeyboardEvent) => e.target.value),
       filter(text => text.length > 2),
       debounceTime(1000),
       distinctUntilChanged(),
-      switchMap(() => this.backendApiService.getStories())
+      map((text) => {
+        const fuse = new Fuse(stories, options);
+        return fuse.search(text);
+      })
     );
-
-    typeahead.subscribe((data) => {
-      this.stories = data;
+    this.backendApiService.getStories().pipe(
+      switchMap((stories) => typeahead(stories)),
+    ).subscribe((stories) => {
+      this.stories = stories;
     });
   }
 
   ngOnInit() {
-    this.backendApiService.getStories().subscribe((stories) => {
-      this.stories = stories;
-    });
+
   }
 }
